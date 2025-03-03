@@ -8,10 +8,6 @@ import machine
 GITHUB_BASE_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/contents/Update_files/"
 RAW_BASE_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/Update_files/"
 VERSION_FILE = "version.txt"
-headers = {
-        "User-Agent": "MicroPython-PicoW",
-        "Accept": "application/vnd.github.v3+json"
-    }
 
 def get_current_version():
     """Lit la version actuelle"""
@@ -59,6 +55,11 @@ def update_if_needed():
     """ Vérifie la version et applique la mise à jour si nécessaire """
     print("🔍 Vérification de la version...")
 
+    headers = {
+        "User-Agent": "MicroPython-PicoW",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
     try:
         response = urequests.get(RAW_BASE_URL, headers=HEADERS)
         remote_version = response.text.strip()
