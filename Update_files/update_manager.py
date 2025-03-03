@@ -41,7 +41,7 @@ def download_file(filename):
     """Télécharge un fichier depuis GitHub"""
     url = RAW_BASE_URL + filename
     try:
-        response = urequests.get(url)
+        response = urequests.get(url, stream=True)  # Activer le mode streaming)
         if response.status_code == 200:
             with open(filename, "wb") as f:
                 f.write(response.content)
