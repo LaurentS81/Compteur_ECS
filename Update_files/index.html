@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion Wi-Fi</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        input, button {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            margin-top: 10px;
+            font-weight: bold;
+            white-space: pre-wrap; /* Permet les sauts de ligne */
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .pending {
+            color: orange;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Connexion au Wi-Fi</h1>
+        <input type="text" id="ssid" placeholder="Nom du réseau (SSID)" required><br>
+        <input type="password" id="password" placeholder="Mot de passe" required><br>
+        <button onclick="sendData()">Se connecter</button>
+        <p id="status"></p>
+    </div>
+
+    <script>
+        function sendData() {
+            const ssid = document.getElementById('ssid').value;
+            const password = document.getElementById('password').value;
+            const status = document.getElementById('status');
+
+            if (!ssid || !password) {
+                status.textContent = 'Veuillez remplir les deux champs.';
+                status.className = 'error';
+                return;
+            }
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/connect", true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            status.textContent = 'Connexion en cours...';
+            status.className = 'pending';
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    if (xhr.responseText.includes("SUCCESS")) {
+                        status.textContent = 'SUCCESS : Connexion réussie!';
+                        status.className = 'success';
+                    } else if (xhr.responseText.includes("FAIL")) {
+                        status.textContent = 'Erreur lors de la connexion. Veuillez réessayer.';
+                        status.className = 'error';
+                    } else {
+                        status.textContent = 'Réponse inattendue du serveur.';
+                        status.className = 'error';
+                    }
+                } else if (xhr.status === 400) {
+                    status.textContent = 'Erreur lors de la connexion.\nVeuillez vérifier vos identifiants\net réessayer.';
+                    status.className = 'error';
+                } else {
+                    status.textContent = `Erreur réseau. Code: ${xhr.status}`;
+                    status.className = 'error';
+                }
+            };
+            
+            // Définir un timeout de 25 secondes (25000 ms)
+            xhr.timeout = 25000;
+
+            // Gérer l'expiration du timeout
+            xhr.ontimeout = function() {
+                status.textContent = 'La connexion du ballon semble\navoir réussi.\n\nVous pouvez maintenant vous\nreconnecter à votre Wifi et\naller sur l’interface de\nvotre ballon.\n\nEn cas d’échec recommencez\nla procédure de connexion\ndu ballon.';
+                status.className = 'success';
+            };
+
+            xhr.send(`ssid=${encodeURIComponent(ssid)}&password=${encodeURIComponent(password)}`);           
+        }
+    </script>
+</body>
+</html>
