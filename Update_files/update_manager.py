@@ -6,7 +6,7 @@ import time
 import machine
 
 # URL de base du répertoire contenant les fichiers de mise à jour
-GITHUB_BASE_URL = "https://api.github.com/repos/LaurentS81/Compteur_ECS/contents/Update_files/"
+GITHUB_BASE_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/contents/Update_files/"
 RAW_BASE_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/Update_files/"
 VERSION_FILE = "version.txt"
 
