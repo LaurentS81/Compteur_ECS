@@ -56,7 +56,7 @@ def update_if_needed():
     print("🔍 Vérification de la version...")
 
     try:
-        response = urequests.get(GITHUB_VERSION_URL, headers=HEADERS)
+        response = urequests.get(RAW_BASE_URL, headers=HEADERS)
         remote_version = response.text.strip()
         response.close()
 
@@ -104,4 +104,3 @@ def update_if_needed():
 
 # Vérifier et mettre à jour si nécessaire
 update_if_needed()
-
