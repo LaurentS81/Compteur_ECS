@@ -8,6 +8,10 @@ import machine
 GITHUB_BASE_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/contents/Update_files/"
 RAW_BASE_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/Update_files/"
 VERSION_FILE = "version.txt"
+headers = {
+        "User-Agent": "MicroPython-PicoW",
+        "Accept": "application/vnd.github.v3+json"
+    }
 
 def get_current_version():
     """Lit la version actuelle"""
@@ -104,3 +108,5 @@ def update_if_needed():
 
 # Vérifier et mettre à jour si nécessaire
 update_if_needed()
+
+
