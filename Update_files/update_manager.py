@@ -4,14 +4,15 @@ import uos
 import time
 import machine
 
-# URL de base du répertoire contenant les fichiers de mise à jour
-GITHUB_BASE_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/contents/Update_files/"
-RAW_BASE_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/Update_files/"
+# URLs de mise à jour sur GitHub
+GITHUB_BASE_URL = "https://api.github.com/repos/LaurentS81/Compteur_ECS/contents/Update_files"
+RAW_BASE_URL = "https://raw.githubusercontent.com/LaurentS81/Compteur_ECS/main/Update_files/"
 VERSION_FILE = "version.txt"
+
 HEADERS = {
-        "User-Agent": "MicroPython-PicoW",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    "User-Agent": "MicroPython-PicoW",
+    "Accept": "application/vnd.github.v3+json"
+}
 
 def get_current_version():
     """Lit la version actuelle"""
@@ -24,7 +25,7 @@ def get_current_version():
 def get_files_list():
     """Récupère la liste des fichiers dans Update_files/ sur GitHub"""
     try:
-        response = urequests.get(GITHUB_BASE_URL)
+        response = urequests.get(GITHUB_BASE_URL, headers=HEADERS)
         if response.status_code == 200:
             files = response.json()
             file_names = [file["name"] for file in files if file["type"] == "file"]
@@ -41,7 +42,7 @@ def download_file(filename):
     """Télécharge un fichier depuis GitHub"""
     url = RAW_BASE_URL + filename
     try:
-        response = urequests.get(url, stream=True)  # Activer le mode streaming)
+        response = urequests.get(url, stream=True)  # Activer le mode streaming
         if response.status_code == 200:
             with open(filename, "wb") as f:
                 f.write(response.content)
@@ -60,7 +61,7 @@ def update_if_needed():
     print("🔍 Vérification de la version...")
     
     try:
-        response = urequests.get(RAW_BASE_URL, headers=HEADERS)
+        response = urequests.get(RAW_BASE_URL + "version.txt", headers=HEADERS)
         remote_version = response.text.strip()
         response.close()
 
@@ -70,7 +71,7 @@ def update_if_needed():
             print(f"🆕 Nouvelle version disponible ({remote_version} > {local_version})")
 
             # Récupération de la liste des fichiers
-            file_list = get_file_list_from_github()
+            file_list = get_files_list()
             if not file_list:
                 print("❌ Échec de récupération de la liste des fichiers.")
                 return
@@ -78,17 +79,17 @@ def update_if_needed():
             update_success = True  # On part du principe que la mise à jour va bien se passer
 
             # **Étape 1 : Télécharger tous les fichiers SAUF `version.txt`**
-            for file_name, file_url in file_list.items():
+            for file_name in file_list:
                 if file_name == "version.txt":
                     continue  # On le traite à la fin
-                if not download_file(file_url, file_name):
+                if not download_file(file_name):
                     update_success = False  # Échec d'un fichier
 
             # **Étape 2 : Si toutes les mises à jour sont réussies, on met à jour `version.txt`**
             if update_success:
                 print("✅ Tous les fichiers ont été mis à jour correctement.")
                 if "version.txt" in file_list:
-                    if download_file(file_list["version.txt"], "version.txt"):
+                    if download_file("version.txt"):
                         print("✅ version.txt mis à jour avec succès.")
                     else:
                         print("❌ Échec de la mise à jour de version.txt !")
@@ -105,8 +106,5 @@ def update_if_needed():
     except Exception as e:
         print(f"⚠️ Erreur réseau lors de la vérification de version : {e}")
 
-
 # Vérifier et mettre à jour si nécessaire
 update_if_needed()
-
-
