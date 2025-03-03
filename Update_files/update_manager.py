@@ -1,4 +1,3 @@
-### TEST ###
 import network
 import urequests
 import uos
@@ -53,11 +52,11 @@ def download_file(filename):
         return False
 
 def update_if_needed():
-    """Vérifie la version et applique la mise à jour si nécessaire"""
+    """ Vérifie la version et applique la mise à jour si nécessaire """
     print("🔍 Vérification de la version...")
 
     try:
-        response = urequests.get(RAW_BASE_URL + VERSION_FILE)
+        response = urequests.get(GITHUB_VERSION_URL, headers=HEADERS)
         remote_version = response.text.strip()
         response.close()
 
@@ -66,27 +65,42 @@ def update_if_needed():
         if remote_version > local_version:
             print(f"🆕 Nouvelle version disponible ({remote_version} > {local_version})")
 
-            # Télécharger la nouvelle version.txt en premier
-            if not download_file(VERSION_FILE):
-                print("❌ Échec de la mise à jour : Impossible de mettre à jour version.txt")
+            # Récupération de la liste des fichiers
+            file_list = get_file_list_from_github()
+            if not file_list:
+                print("❌ Échec de récupération de la liste des fichiers.")
                 return
+            
+            update_success = True  # On part du principe que la mise à jour va bien se passer
 
-            # Récupérer la liste des fichiers à mettre à jour
-            files_to_update = get_files_list()
+            # **Étape 1 : Télécharger tous les fichiers SAUF `version.txt`**
+            for file_name, file_url in file_list.items():
+                if file_name == "version.txt":
+                    continue  # On le traite à la fin
+                if not download_file(file_url, file_name):
+                    update_success = False  # Échec d'un fichier
 
-            # Télécharger chaque fichier
-            for file in files_to_update:
-                if file != VERSION_FILE:  # Ne pas re-télécharger version.txt
-                    download_file(file)
+            # **Étape 2 : Si toutes les mises à jour sont réussies, on met à jour `version.txt`**
+            if update_success:
+                print("✅ Tous les fichiers ont été mis à jour correctement.")
+                if "version.txt" in file_list:
+                    if download_file(file_list["version.txt"], "version.txt"):
+                        print("✅ version.txt mis à jour avec succès.")
+                    else:
+                        print("❌ Échec de la mise à jour de version.txt !")
+            else:
+                print("❌ Une ou plusieurs mises à jour ont échoué. version.txt n'a PAS été modifié.")
 
             print("🔄 Redémarrage du Pico W...")
             time.sleep(2)
             machine.reset()
+
         else:
             print("✅ Déjà à jour")
 
     except Exception as e:
-        print("⚠️ Erreur lors de la vérification de version :", e)
+        print(f"⚠️ Erreur réseau lors de la vérification de version : {e}")
+
 
 # Vérifier et mettre à jour si nécessaire
 update_if_needed()
