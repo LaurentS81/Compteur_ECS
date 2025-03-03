@@ -1,36 +1,47 @@
+### TEST ###
 import network
 import urequests
 import uos
 import time
 import machine
-import deflate  # MicroPython supporte DEFLATE
 
-# URLs de mise à jour sur GitHub
+# URL de base du répertoire contenant les fichiers de mise à jour
+GITHUB_BASE_URL = "https://api.github.com/repos/LaurentS81/Compteur_ECS/contents/Update_files/"
+RAW_BASE_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/Update_files/"
 VERSION_FILE = "version.txt"
-ZIP_FILE = "update_package.zip"
-
-GITHUB_VERSION_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/version.txt"
-GITHUB_ZIP_URL = "https://cdn.jsdelivr.net/gh/LaurentS81/Compteur_ECS/update_package.zip"
 
 def get_current_version():
-    """ Lit la version actuelle du firmware depuis version.txt """
+    """Lit la version actuelle"""
     try:
         with open(VERSION_FILE, "r") as f:
             return f.read().strip()
     except OSError:
-        return "0.0"  # Retourne 0.0 si aucun fichier version.txt n'est trouvé
+        return "0.0"
 
-def download_file(url, filename):
-    """ Télécharge un fichier sans erreur de transfert chunked """
+def get_files_list():
+    """Récupère la liste des fichiers dans Update_files/ sur GitHub"""
     try:
-        response = urequests.get(url, stream=True)  # Activer le mode streaming
+        response = urequests.get(GITHUB_BASE_URL)
+        if response.status_code == 200:
+            files = response.json()
+            file_names = [file["name"] for file in files if file["type"] == "file"]
+            response.close()
+            return file_names
+        else:
+            print(f"❌ Erreur {response.status_code} lors de la récupération de la liste des fichiers")
+            return []
+    except Exception as e:
+        print(f"⚠️ Erreur lors de la récupération de la liste des fichiers :", e)
+        return []
+
+def download_file(filename):
+    """Télécharge un fichier depuis GitHub"""
+    url = RAW_BASE_URL + filename
+    try:
+        response = urequests.get(url)
         if response.status_code == 200:
             with open(filename, "wb") as f:
-                while True:
-                    chunk = response.raw.read(512)  # Lire en morceaux de 512 octets
-                    if not chunk:
-                        break
-                    f.write(chunk)
+                f.write(response.content)
             response.close()
             print(f"✅ {filename} téléchargé avec succès !")
             return True
@@ -41,78 +52,12 @@ def download_file(url, filename):
         print(f"⚠️ Erreur de téléchargement de {filename} :", e)
         return False
 
-def extract_zip_manually(zip_filename):
-    """ Décompresse un fichier ZIP sans compression sur MicroPython """
-    try:
-        with open(zip_filename, "rb") as f:
-            zip_data = f.read()
-
-        index = 0
-        file_count = 0
-
-        while index < len(zip_data):
-            if zip_data[index:index+4] == b'PK\x03\x04':  # Signature d'un fichier ZIP
-                print("📂 Détection d'un fichier dans le ZIP...")
-
-                # Lire les informations de l'en-tête du fichier ZIP
-                file_size = int.from_bytes(zip_data[index+18:index+22], "little")  # Taille correcte
-                file_name_length = int.from_bytes(zip_data[index+26:index+28], "little")
-                extra_field_length = int.from_bytes(zip_data[index+28:index+30], "little")
-
-                # Extraire le nom du fichier
-                file_name_start = index + 30
-                file_name_end = file_name_start + file_name_length
-                file_name = zip_data[file_name_start:file_name_end].decode()
-
-                print(f"📂 Fichier détecté : {file_name} ({file_size} octets)")
-
-                # Vérifier et ignorer les fichiers système macOS
-                if file_name.startswith("__MACOSX") or file_name.endswith(".DS_Store"):
-                    print(f"⚠️ Ignoré : {file_name}")
-                    index = file_name_end + extra_field_length
-                    continue
-
-                file_data_start = file_name_end + extra_field_length
-                file_data_end = file_data_start + file_size
-                """
-                if file_size == 0:
-                    print(f"⚠️ Ignoré (fichier vide) : {file_name}")
-                    index = file_data_end
-                    continue
-                """
-                # S'assurer que les indices ne dépassent pas la taille du fichier ZIP
-                if file_data_end > len(zip_data):
-                    print(f"❌ Erreur : Index hors limites pour {file_name}")
-                    return False
-
-                # Écrire le fichier extrait
-                print(f"📂 Extraction de {file_name} ({file_size} octets)")
-                with open(file_name, "wb") as f:
-                    f.write(zip_data[file_data_start:file_data_end])
-
-                file_count += 1
-                index = file_data_end  # Passer au prochain fichier
-            else:
-                index += 1  # Continuer la recherche
-
-        if file_count == 0:
-            print("❌ Aucun fichier valide trouvé dans le ZIP !")
-            return False
-
-        print(f"✅ {file_count} fichiers extraits avec succès !")
-        return True
-
-    except Exception as e:
-        print("❌ Erreur lors de l'extraction du ZIP :", e)
-        return False
-
-
 def update_if_needed():
-    """ Vérifie la version et applique la mise à jour si nécessaire """
+    """Vérifie la version et applique la mise à jour si nécessaire"""
     print("🔍 Vérification de la version...")
 
     try:
-        response = urequests.get(GITHUB_VERSION_URL)
+        response = urequests.get(RAW_BASE_URL + VERSION_FILE)
         remote_version = response.text.strip()
         response.close()
 
@@ -120,14 +65,23 @@ def update_if_needed():
 
         if remote_version > local_version:
             print(f"🆕 Nouvelle version disponible ({remote_version} > {local_version})")
-            if download_file(GITHUB_ZIP_URL, ZIP_FILE):
-                if extract_zip_manually(ZIP_FILE):
-                    with open(VERSION_FILE, "w") as f:
-                        f.write(remote_version)
 
-                    print("🔄 Redémarrage du Pico W...")
-                    time.sleep(2)
-                    machine.reset()
+            # Télécharger la nouvelle version.txt en premier
+            if not download_file(VERSION_FILE):
+                print("❌ Échec de la mise à jour : Impossible de mettre à jour version.txt")
+                return
+
+            # Récupérer la liste des fichiers à mettre à jour
+            files_to_update = get_files_list()
+
+            # Télécharger chaque fichier
+            for file in files_to_update:
+                if file != VERSION_FILE:  # Ne pas re-télécharger version.txt
+                    download_file(file)
+
+            print("🔄 Redémarrage du Pico W...")
+            time.sleep(2)
+            machine.reset()
         else:
             print("✅ Déjà à jour")
 
@@ -136,3 +90,4 @@ def update_if_needed():
 
 # Vérifier et mettre à jour si nécessaire
 update_if_needed()
+
